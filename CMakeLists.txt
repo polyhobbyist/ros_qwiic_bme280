@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(ros_wiring_template)
+project(ros_qwiic_bme280)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -32,6 +32,7 @@ add_executable(${PROJECT_NAME}
   src/wiring_for_ros/SPI.cpp
   src/wiring_for_ros/Wire.cpp
   src/wiring_for_ros/Arduino.cpp
+  src/SparkFun_BME280_Arduino_Library/src/SparkFunBME280.cpp  
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -67,15 +68,18 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(Boost REQUIRED system)
+find_package(sensor_msgs REQUIRED system)
 
 include_directories(
   include/${PROJECT_NAME}
   ${SOURCE_DIR}/include
   src/wiring_for_ros/include
+  src/SparkFun_BME280_Arduino_Library/src
 )
 
 ament_target_dependencies(${PROJECT_NAME} 
   rclcpp
+  sensor_msgs
   Boost)
 
 install(TARGETS ${PROJECT_NAME}

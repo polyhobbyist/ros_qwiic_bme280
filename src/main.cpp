@@ -29,12 +29,16 @@ SOFTWARE.
 
 #include "Arduino.h"
 #include "Wire.h"
+#include "SparkFunBME280.h"
+#include "sensor_msgs/msg/temperature.hpp"
 
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 
 class I2CPublisher : public rclcpp::Node
 {
+  BME280 mySensor;
+
   public:
     I2CPublisher()
     : Node("i2cpublisher")
@@ -43,23 +47,41 @@ class I2CPublisher : public rclcpp::Node
 
     void initialize()
     {
-      get_parameter_or<uint8_t>("id", _id, 0x52); 
+      get_parameter_or<uint8_t>("id", _id, 0x77); 
       get_parameter_or<double>("poll", _poll, 500.0);
+      get_parameter_or<std::string>("frame_id", _frameId, "temp");
 
       Wire.begin();
+      if (mySensor.beginI2C() == false)
+      {
+        RCLCPP_ERROR(rclcpp::get_logger("bme280"), "Could not initialize bme280 on %d", _id);
+        return;
+      }
 
       _timer = this->create_wall_timer(std::chrono::duration<double, std::milli>(_poll), std::bind(&I2CPublisher::timer_callback, this));
+      _tempPub = this->create_publisher<sensor_msgs::msg::Temperature>("temp", 10);
     }
 
   private:
     void timer_callback()
     {
-      //Poll sensor for new data 
+      sensor_msgs::msg::Temperature tempMsg;
+
+      float c = mySensor.readTempC();
+
+      tempMsg.header.frame_id = _frameId;
+      tempMsg.header.stamp = rclcpp::Clock().now();
+      tempMsg.temperature = c;
+
+      _tempPub->publish(tempMsg);
     }
+
     rclcpp::TimerBase::SharedPtr _timer;
 
+    rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr _tempPub;
     uint8_t _id;
     double _poll;
+    std::string _frameId;
 };
 
 int main(int argc, char * argv[])
@@ -69,6 +91,7 @@ int main(int argc, char * argv[])
     auto node = std::make_shared<I2CPublisher>();
     node->declare_parameter("id");
     node->declare_parameter("poll");
+    node->declare_parameter("frame_id");
 
     node->initialize();
 
